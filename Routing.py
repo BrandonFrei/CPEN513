@@ -18,7 +18,7 @@ def plot_grid(grid_n):
 
 # reading in the file
 data = []
-with open('C:/Users/flyer/OneDrive/Documents/UBC School/CPEN513/benchmarks/benchmarks/impossible2.infile') as rfile:
+with open('C:/Users/flyer/OneDrive/Documents/UBC School/CPEN513/CPEN513/benchmarks/benchmarks/wavy.infile') as rfile:
     data_raw = rfile.readlines()
     for line in data_raw:
         data.append(line.strip())
@@ -173,22 +173,45 @@ def backtrace(temp_grid, perm_grid, sink_locations_o, sink_locations, wire_num):
                 break
 
             # if we're looking at a valid grid point
+            if ( x + 1 < temp_grid.shape[1] and temp_grid[y][x + 1] == wire_value and not (previous_location==start_loc).all()):
+                previous_location = np.asarray([x, y])
+                x += 1
+                continue
+
+            if ( x - 1 >= 0 and temp_grid[y][x - 1] == wire_value and not (previous_location==start_loc).all()):
+                previous_location = np.asarray([x, y])
+                x -= 1
+                continue
             
+            if (y + 1 < temp_grid.shape[0] and temp_grid[y + 1][x] == wire_value and not (previous_location==start_loc).all()):
+                previous_location = np.asarray([x, y])
+                y += 1
+                continue
+
+            if (y - 1 >= 0 and temp_grid[y - 1][x] == wire_value and not (previous_location==start_loc).all()):
+                previous_location = np.asarray([x, y])
+                y -= 1
+                continue
+
             # which way do we backtrack, or if we've found a net connecting another source
             # and sink on the same network, we can stop there. Must make sure not to go
             # back to the previous tile, though.
-            if ( x + 1 < temp_grid.shape[1] and (temp_grid[y][x + 1] == curr_val - 1 or (temp_grid[y][x + 1] == wire_value and not (previous_location==start_loc).all()) )):
+            if ( x + 1 < temp_grid.shape[1] and (temp_grid[y][x + 1] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 x += 1
-            if ( x - 1 >= 0 and (temp_grid[y][x - 1] == curr_val - 1 or (temp_grid[y][x - 1] == wire_value and not (previous_location==start_loc).all()) )):
+                continue
+            if ( x - 1 >= 0 and (temp_grid[y][x - 1] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 x -= 1
-            if ( y + 1 < temp_grid.shape[0] and(temp_grid[y + 1][x] == curr_val - 1 or (temp_grid[y + 1][x] == wire_value and not (previous_location==start_loc).all()) )):
+                continue
+            if ( y + 1 < temp_grid.shape[0] and (temp_grid[y + 1][x] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 y += 1
-            if (y - 1 >= 0 and(temp_grid[y - 1][x] == curr_val - 1 or (temp_grid[y - 1][x] == wire_value and not (previous_location==start_loc).all()) )):
+                continue
+            if (y - 1 >= 0 and (temp_grid[y - 1][x] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 y -= 1
+                continue
 
     return perm_grid               
 
