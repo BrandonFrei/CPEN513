@@ -6,23 +6,33 @@ import tkinter as tk
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+import A_Star as a_star
+
 from numpy.lib.utils import source
 
 
 def plot_grid(grid_n):
     # plt.plot(grid)
-    plt.imshow(grid, interpolation='none')
+    plt.imshow(grid_n, interpolation='none')
     plt.show()
     plt.clf()
     
 
 # reading in the file
 data = []
-with open('C:/Users/flyer/OneDrive/Documents/UBC School/CPEN513/CPEN513/benchmarks/benchmarks/wavy.infile') as rfile:
+with open('C:/Users/flyer/OneDrive/Documents/UBC School/CPEN513/CPEN513/benchmarks/benchmarks/example.infile') as rfile:
     data_raw = rfile.readlines()
     for line in data_raw:
         data.append(line.strip())
-        
+
+perm_grid_a, temp_grid_a, wires_a, num_wires_a = a_star.a_init_aStar(data)
+perm_grid_a = perm_grid_a.astype(int)
+temp_grid_a = temp_grid_a.astype(int)
+print(num_wires_a)
+final_grid = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
+print(final_grid)
+exit(0)
+
 width, height = data[0].split(" ")
 width = int(width)
 height = int(height)
@@ -63,6 +73,7 @@ for i in range(num_obstructions):
     
 def adjacent(t_grid, x, y, value):
     """fills in values of adjacent tiles with value
+       Used in the forward pass
 
     Args:
         t_grid ([type]): old grid with the adjacent values filled in
@@ -95,8 +106,9 @@ def adjacent(t_grid, x, y, value):
     return np.asarray(t_grid), new_locations
 
 
-def found_sink(t_grid, found_connection, x, y, j):
+def found_sink(t_grid, found_connection, x, y, j, con_loc):
     """looks for sinks in adjacent squares at the current grid tile
+       Used in the forward pass
 
     Args:
         t_grid (numpy array): grid with the distances from the source
@@ -114,18 +126,18 @@ def found_sink(t_grid, found_connection, x, y, j):
 
     if( (x + 1) < t_grid.shape[1] and t_grid[y][x + 1] > 0):
         found_connection[j] = t_grid[y][x + 1]
-        connection_location[j] = [x + 1, y]
+        con_loc[j] = [x + 1, y]
     if( (x - 1) >= 0 and t_grid[y][x - 1] > 0):
         found_connection[j] = t_grid[y][x - 1]
-        connection_location[j] = [x - 1, y]
+        con_loc[j] = [x - 1, y]
     if( (y + 1) < t_grid.shape[0] and t_grid[y + 1][x] > 0):
         found_connection[j] = t_grid[y + 1][x]
-        connection_location[j] = [x, y + 1]
+        con_loc[j] = [x, y + 1]
     if( (y - 1) >= 0 and t_grid[y - 1][x] > 0):
         found_connection[j] = t_grid[y - 1][x]
-        connection_location[j] = [x, y - 1]
+        con_loc[j] = [x, y - 1]
 
-    return connection_location, found_connection, (np.count_nonzero(found_connection) >= num_pins)
+    return con_loc, found_connection, (np.count_nonzero(found_connection) >= num_pins)
 
 # temp_grid -> the grid with the values filled in from the lee-moore algorithm
 # perm_grid -> the grid with the current connections / blocks only
@@ -133,9 +145,10 @@ def found_sink(t_grid, found_connection, x, y, j):
 #      to the sink in question)
 # sink_locations_o -> offset sink locations, where the first value is located
 # sink_locations -> where the sink is located
-def backtrace(temp_grid, perm_grid, sink_locations_o, sink_locations, wire_num):
+def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
     # using a value of -1 for the blocks, -2 and lower for each wire
     """ Traces through the grid created by adjacent from the sink back to the source
+        Used in the backward pass
 
     Args:
         temp_grid (numpy array): grid with values indicating distance from source
@@ -149,6 +162,14 @@ def backtrace(temp_grid, perm_grid, sink_locations_o, sink_locations, wire_num):
     """
 
     wire_value = -1 * (wire_num + 2)
+    print(perm_grid)
+    
+    # avoid connections only between sinks - need to ensure connect to source
+    for sink in range(len(sink_locations)//2):
+        x = int(sink_locations[int(sink) * 2])
+        y = int(sink_locations[1 + int(sink) * 2])
+        perm_grid[y][x] = 999999
+
     for sink in range(sink_locations_o.shape[0]):
         
         start_loc = np.asarray([int(sink_locations[int(sink) * 2]), int(sink_locations[1 + int(sink) * 2])])
@@ -160,69 +181,74 @@ def backtrace(temp_grid, perm_grid, sink_locations_o, sink_locations, wire_num):
         i = 0
         while True:
             i += 1
-            perm_grid[y][x] = wire_value
             
             # if we've arrived at the source
-            if (temp_grid[y][x] == wire_value):
+            if (perm_grid[y][x] == wire_value):
+                perm_grid[y][x] = wire_value
                 break
             # failsafe
             if (i > 10000):
                 break
-            curr_val = temp_grid[y][x]
+            curr_val = perm_grid[y][x]
             if(curr_val == 2):
+                perm_grid[y][x] = wire_value
                 break
 
-            # if we're looking at a valid grid point
-            if ( x + 1 < temp_grid.shape[1] and temp_grid[y][x + 1] == wire_value and not (previous_location==start_loc).all()):
+            perm_grid[y][x] = wire_value
+            # check if we're near a previously placed wire
+            # if we're looking at a valid grid point, if it is a net we're solving for, if we haven't previously been at the point, 
+            if ( x + 1 < perm_grid.shape[1] and perm_grid[y][x + 1] == wire_value and (previous_location==np.asarray([x+1,y])).all() == False):
                 previous_location = np.asarray([x, y])
                 x += 1
                 continue
 
-            if ( x - 1 >= 0 and temp_grid[y][x - 1] == wire_value and not (previous_location==start_loc).all()):
+            if ( x - 1 >= 0 and perm_grid[y][x - 1] == wire_value and (previous_location==np.asarray([x-1,y])).all() == False):
                 previous_location = np.asarray([x, y])
                 x -= 1
                 continue
             
-            if (y + 1 < temp_grid.shape[0] and temp_grid[y + 1][x] == wire_value and not (previous_location==start_loc).all()):
+            if (y + 1 < perm_grid.shape[0] and perm_grid[y + 1][x] == wire_value and (previous_location==np.asarray([x,y+1])).all() == False):
                 previous_location = np.asarray([x, y])
                 y += 1
                 continue
 
-            if (y - 1 >= 0 and temp_grid[y - 1][x] == wire_value and not (previous_location==start_loc).all()):
+            if (y - 1 >= 0 and perm_grid[y - 1][x] == wire_value and (previous_location==np.asarray([x,y-1])).all() == False):
                 previous_location = np.asarray([x, y])
                 y -= 1
                 continue
 
-            # which way do we backtrack, or if we've found a net connecting another source
-            # and sink on the same network, we can stop there. Must make sure not to go
-            # back to the previous tile, though.
-            if ( x + 1 < temp_grid.shape[1] and (temp_grid[y][x + 1] == curr_val - 1 )):
+            # If we didn't find another wire, which tile do we backtrace to
+            if ( x + 1 < perm_grid.shape[1] and (perm_grid[y][x + 1] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 x += 1
                 continue
-            if ( x - 1 >= 0 and (temp_grid[y][x - 1] == curr_val - 1 )):
+            if ( x - 1 >= 0 and (perm_grid[y][x - 1] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 x -= 1
                 continue
-            if ( y + 1 < temp_grid.shape[0] and (temp_grid[y + 1][x] == curr_val - 1 )):
+            if ( y + 1 < perm_grid.shape[0] and (perm_grid[y + 1][x] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 y += 1
                 continue
-            if (y - 1 >= 0 and (temp_grid[y - 1][x] == curr_val - 1 )):
+            if (y - 1 >= 0 and (perm_grid[y - 1][x] == curr_val - 1 )):
                 previous_location = np.asarray([x, y])
                 y -= 1
                 continue
+    for sink in range(len(sink_locations)//2):
+        x = int(sink_locations[int(sink) * 2])
+        y = int(sink_locations[1 + int(sink) * 2])
+        perm_grid[y][x] = wire_value
 
+    grid[grid > 0] = 0
     return perm_grid               
 
 for wire in range(num_wires):
-    temp_values = np.asarray(wires[wire][1:3])
     sink_found = False
     t_value = 1
-    # print("updated grid")
-    # print(grid)
-    updated_grid = np.asarray(deepcopy(grid))
-    updated_locations = deepcopy(temp_values)
+
+    grid[grid > 0] = 0
+
+    updated_locations = np.asarray(wires[wire][1:3])
 
     # used to keep track of if we have a connection between the new "path"
     # of values between the souce and the sink. Stores the numerical value
@@ -240,7 +266,7 @@ for wire in range(num_wires):
         for i in range(int(len(updated_locations)/2)):
             x = int(updated_locations[0 + i * 2])
             y = int(updated_locations[1 + i * 2])
-            updated_grid, temp_locations = adjacent(updated_grid, x, y, t_value)
+            grid, temp_locations = adjacent(grid, x, y, t_value)
             new_locations += temp_locations
         t_value += 1
         if not new_locations:
@@ -249,30 +275,25 @@ for wire in range(num_wires):
         updated_locations = deepcopy(new_locations)
         
         # Did any of the new values arrive at the sinks
-        # if (t_value == 16):
-        # for each wire
         # number of sinks per wire
         for j in range(int((wires[wire][0])) - 1):
             if (connection[j] > 0):
                 continue
             x = int(wires[wire][3 + int(j) * 2])
             y = int(wires[wire][4 + int(j) * 2])
-            connection_location, connection, sink_found = found_sink(updated_grid, connection, x, y, j)
-            # print("connection")
-            # print(connection)
+            connection_location, connection, sink_found = found_sink(grid, connection, x, y, j, connection_location)
+        
         if (sink_found or t_value > 1000):
-        #if (sink_found):
-
             # delete this line when testing is done
             sink_found = True
             sinks = wires[wire][3:]
-            np.savetxt("foo.txt", updated_grid, delimiter=" ", fmt='%d')
-            grid = backtrace(updated_grid, grid, connection_location, sinks, int(wire))
+            np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
+            grid = backtrace(grid, connection_location, sinks, int(wire))
             plot_grid(grid)
 
 
-grid = grid.astype(int) * -1
-print(grid)
+grid = grid.astype(int)
+#print(grid)
 # np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
 color_grid = np.asarray([["white"]*grid.shape[1]]*grid.shape[0])
 
@@ -283,7 +304,7 @@ color_grid[grid == -1] = "black"
 # for i in range(2, 2 + int(num_wires)):
 #     color_grid[grid == -i] = colors[i]
 
-# print(color_grid)
+plot_grid(grid)
 
 
 
