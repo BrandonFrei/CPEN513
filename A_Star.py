@@ -1,10 +1,14 @@
 from ast import While
+from turtle import up
 import numpy as np
 from copy import deepcopy
 
 def list_sort(list_n):
-    list_n.sort(key = lambda man_val: man_val[2])
-    return list_n
+    if(isinstance(list_n[0], list) == False):
+        return list_n
+    else:
+        list_n.sort(key = lambda man_val: man_val[2])
+        return list_n
 
 def a_init_aStar(data):
     """Initializes the a_star grid
@@ -66,7 +70,10 @@ def a_manhattan_distance(loc1, loc2):
     Returns:
         int: manhattan distance
     """
-    return (abs(int(loc1[0]) - int(loc2[0])) + abs(int(loc1[1]) - int(loc2[1])))
+
+    x = (abs(int(loc1[0]) - int(loc2[0])) + abs(int(loc1[1]) - int(loc2[1])))
+    print("man_dist: " + str(x))
+    return x
 
 def a_adjacent(t_grid, x, y, value, sink, source):
     """fills in values of adjacent tiles with value
@@ -88,22 +95,22 @@ def a_adjacent(t_grid, x, y, value, sink, source):
         value = a_manhattan_distance(source, [y, x + 1])
         t_grid[y][x + 1] = [x, y, value]
         temp = [x + 1, y, value]
-        new_locations += temp
+        new_locations.append(temp)
     if( (x - 1) >= 0 and t_grid[y][x - 1][2] == 0):
         value = a_manhattan_distance(source, [y, x - 1])
         t_grid[y][x - 1] = [x, y, value]
         temp = [x - 1, y, value]
-        new_locations += temp
+        new_locations.append(temp)
     if( (y + 1) < t_grid.shape[0] and t_grid[y + 1][x][2] == 0):
         value = a_manhattan_distance(source, [y + 1, x])
         t_grid[y + 1][x] = [x, y, value]
         temp = [x, y + 1, value]
-        new_locations += temp
+        new_locations.append(temp)
     if( (y - 1) >= 0 and t_grid[y - 1][x][2] == 0):
         value = a_manhattan_distance(source, [y - 1, x])
         t_grid[y - 1][x] = [x, y, value]
         temp = [x, y - 1, value]
-        new_locations += temp
+        new_locations.append(temp)
     return np.asarray(t_grid), new_locations
 
 
@@ -187,7 +194,12 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         temp_grid[temp_grid > 0] = 0
 
         updated_locations = wires[wire][3:5]
+        updated_locations = [int(i) for i in updated_locations]
+        # TODO this
         source = wires[wire][1:3]
+        source = [int(i) for i in source]
+        updated_locations.append(a_manhattan_distance(source, updated_locations))
+        updated_locations = updated_locations
 
         # should be able to substitute below values with temp_grid
 
@@ -201,23 +213,29 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         # first pin is a source
         print("number of sinks: " + str(int(wires[0][0]) - 1))
         for sink in range (int(wires[0][0]) - 1):
-            
             while len(updated_locations):
-                print("made it here")
                 # initial manhattan distance
-                x = int(updated_locations[0])
-                y = int(updated_locations[1])
+                if(isinstance(updated_locations[0], list) == False):
+                    x = int(updated_locations[0])
+                    y = int(updated_locations[1])
+                else:
+                    x = updated_locations[0][0]
+                    y = updated_locations[0][1]
                 man_dist = a_manhattan_distance(source, [x, y])
                 temp_grid, temp_locations = a_adjacent(temp_grid, x, y, man_dist, sink, source)
-                print(temp_grid)
+                temp_locations.append(updated_locations)
+                print("updated locations:")
+                print(len(temp_locations))
+                print(temp_locations)
+                exit(0)
                 # bring the lowest manhattan distances to the front
-                updated_locations = list_sort(updated_locations + temp_locations)
+                updated_locations = list_sort(updated_locations)
                 connection_location, connection, sinks_found = a_found_sink(temp_grid, connection, x, y, int(sink), connection_location)
                 
                 if(sinks_found):
                     break
                 # this might not be necessary - I think the updated locations will catch it
-                if(man_dist > perm_grid[0] + perm_grid[1]):
+                if(man_dist > perm_grid.shape[0] + perm_grid.shape[1]):
                     print("Wire " + int(sink) + " not found.")
                     break
             sinks = wires[wire][3:]

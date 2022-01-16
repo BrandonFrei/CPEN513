@@ -10,7 +10,6 @@ import A_Star as a_star
 
 from numpy.lib.utils import source
 
-
 def plot_grid(grid_n):
     # plt.plot(grid)
     plt.imshow(grid_n, interpolation='none')
@@ -127,13 +126,13 @@ def found_sink(t_grid, found_connection, x, y, j, con_loc):
     if( (x + 1) < t_grid.shape[1] and t_grid[y][x + 1] > 0):
         found_connection[j] = t_grid[y][x + 1]
         con_loc[j] = [x + 1, y]
-    if( (x - 1) >= 0 and t_grid[y][x - 1] > 0):
+    elif( (x - 1) >= 0 and t_grid[y][x - 1] > 0):
         found_connection[j] = t_grid[y][x - 1]
         con_loc[j] = [x - 1, y]
-    if( (y + 1) < t_grid.shape[0] and t_grid[y + 1][x] > 0):
+    elif( (y + 1) < t_grid.shape[0] and t_grid[y + 1][x] > 0):
         found_connection[j] = t_grid[y + 1][x]
         con_loc[j] = [x, y + 1]
-    if( (y - 1) >= 0 and t_grid[y - 1][x] > 0):
+    elif( (y - 1) >= 0 and t_grid[y - 1][x] > 0):
         found_connection[j] = t_grid[y - 1][x]
         con_loc[j] = [x, y - 1]
 
@@ -303,7 +302,7 @@ color_grid[grid == -1] = "black"
 # colors = ["yellow", "cyan", "purple", "green", "red", "orange", "pink"]
 # for i in range(2, 2 + int(num_wires)):
 #     color_grid[grid == -i] = colors[i]
-
+print(grid)
 plot_grid(grid)
 
 
