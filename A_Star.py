@@ -300,15 +300,27 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
             print(updated_locations)
 
             while connection[0] == 0:
-
+                print("updated locations")
+                print(updated_locations)
                 # if we have to change the value of the key and move away from the optimal path
                 if not updated_locations[d_key]:
                     del updated_locations[d_key]
-                    if not updated_locations:
-                        print("Wire " + str(sink) + " not found.")
-                        break
-                    else:
-                        d_key = min(updated_locations, key=updated_locations.get)
+                if not updated_locations:
+                    print("Wire " + str(sink) + " not found.")
+                    break
+                else:
+                    print("CHANING KEY")
+                    d_key = min(updated_locations)
+                    print(d_key)
+
+
+                # if not updated_locations[d_key]:
+                #     del updated_locations[d_key]
+                #     if not updated_locations:
+                #         print("Wire " + str(sink) + " not found.")
+                #         break
+                #     else:
+                #         
 
                 x = updated_locations[d_key][0]
                 y = updated_locations[d_key][1]
@@ -321,26 +333,16 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 # bring the lowest manhattan distances to the front
                 connection_location, connection, sinks_found = a_found_sink(temp_grid, connection, source, int(sink), connection_location)
                 print("Sinks found: " + str(sinks_found))
-                # print("conenction_location:")
-                # print(connection_location)
-                # new_grid = []
-                # for i in range(len(perm_grid)):
-                #     for j in range(len(perm_grid[0])):
-                #         new_grid.append(temp_grid[i][j][2])
-                # new_grid = np.asarray(new_grid)
-                # new_grid = np.reshape(new_grid, (len(perm_grid), len(perm_grid[0])))
-                # print(new_grid)
-                # np.savetxt("foo.txt", new_grid, delimiter=" ", fmt='%d')
                 print("connection")
                 print(connection)
                 print("connection location:")
-                print(connection_location)
+                print(connection_location[0])
                 if(sinks_found):
                     perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire))
                     break
                 if(wire_found):
                     perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire))
-            # perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[int(sink)], int(wire))
+            
             
 
     return perm_grid
