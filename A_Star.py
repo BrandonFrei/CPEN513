@@ -92,6 +92,8 @@ def a_adjacent(t_grid, x, y, value, sink, source, loc_dict, perm_grid, wire, all
     """
 
     for i in range(int(len(all_sinks) / 2)):
+        if (int(i) == wire):
+            continue
         x_t = int(all_sinks[int(i) * 2])
         y_t = int(all_sinks[1 + int(i) * 2])
         perm_grid[y_t][x_t] = 0
@@ -286,13 +288,19 @@ def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks):
 
     # avoid connections only between sinks - need to connect to source
 
-    for i in range(int(len(all_sinks) / 2)):
-            x_t = int(all_sinks[int(i) * 2])
-            y_t = int(all_sinks[1 + int(i) * 2])
-            perm_grid[y_t][x_t] = 0
     # for each sink
     x = int(sink_locations[0])
     y = int(sink_locations[1])
+
+    if(perm_grid[y][x] == wire_value):
+        return perm_grid
+
+    for i in range(int(len(all_sinks) / 2)):
+        if (int(i) == wire_num):
+            continue
+        x_t = int(all_sinks[int(i) * 2])
+        y_t = int(all_sinks[1 + int(i) * 2])
+        perm_grid[y_t][x_t] = 0
 
     print("x: " + str(x) + ", y: " + str(y))
     while True:
