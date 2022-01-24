@@ -1,14 +1,17 @@
-from operator import is_not
 import numpy as np
 from copy import deepcopy
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from tkinter import *
 from matplotlib import colors
-
-def list_sort(list_n):
-    list_n.sort(key = lambda man_val: man_val[2])
-    return list_n
+import time
 
 def plot_t_grid(temp_grid):
+    """Plots the current state of the temp_grid (values from source only)
+
+    Args:
+        temp_grid (3d numpy array): previous x, previous y, and current value for each tile
+    """
     new_grid = []
     for i in range(len(temp_grid)):
         for j in range(len(temp_grid[0])):
@@ -73,7 +76,7 @@ def a_init_aStar(data):
     return perm_grid, temp_grid, wires, num_wires
 
 def a_manhattan_distance(loc1, loc2):
-    """[summary]
+    """Finds the manhattan distances between 2 points
 
     Args:
         loc1 (numpy array): source coordinates
@@ -112,12 +115,6 @@ def a_adjacent(t_grid, x, y, value, sink, source, loc_dict, perm_grid, wire, all
         connection_location (numpy array): where connection values are located (within 1 tile of all_sinks values)
 
     """
-    for i in range(int(len(all_sinks) / 2)):
-        if (int(i) == wire):
-            continue
-        x_t = int(all_sinks[int(i) * 2])
-        y_t = int(all_sinks[1 + int(i) * 2])
-        perm_grid[y_t][x_t] = 0
 
     wire_found = False
     wire_value = -1 * (2 + wire)
@@ -200,7 +197,6 @@ def a_adjacent(t_grid, x, y, value, sink, source, loc_dict, perm_grid, wire, all
             x_t = int(all_sinks[int(i) * 2])
             y_t = int(all_sinks[1 + int(i) * 2])
             perm_grid[y_t][x_t] = wire_value
-    print("wire found: " + str(wire_found))
     return np.asarray(t_grid), loc_dict, wire_found, connection, connection_location
 
 def is_sink(x, y, sinks):
@@ -211,7 +207,7 @@ def is_sink(x, y, sinks):
     return False
 # shouldn't need to modify this one too much. might need to check for the lowest value one,
 # but I don't think so.
-def a_found_sink(t_grid, found_connection, source, j, con_loc):
+def a_found_sink(t_grid, found_connection, source, con_loc):
     """looks for sinks in adjacent squares at the current grid tile
        Used in the forward pass
 
@@ -233,53 +229,77 @@ def a_found_sink(t_grid, found_connection, source, j, con_loc):
     #hacky way to make sure that we got the working grid slot..
     found_val = 0
 
-    # otherwise...
+    # if we have a valid point, and if it's been visited by the adjacent algorithm
+    # (known distance from source)
     if( (x + 1) < t_grid.shape[1] and t_grid[y][x + 1][2] > 0):
         found_connection[0] = t_grid[y][x + 1][2]
         con_loc[0] = [x + 1, y]
         found_val = found_connection[0]
     elif( (x - 1) >= 0 and t_grid[y][x - 1][2] > found_val):
-        print("x - 1")
         found_connection[0] = t_grid[y][x - 1][2]
         con_loc[0] = [x - 1, y]
         found_val = found_connection[0]
     elif( (y + 1) < t_grid.shape[0] and t_grid[y + 1][x][2] > found_val):
-        print("y + 1")
         found_connection[0] = t_grid[y + 1][x][2]
         con_loc[0] = [x, y + 1]
         found_val = found_connection[0]
     elif( (y - 1) >= 0 and t_grid[y - 1][x][2] > found_val):
-        print("y - 1")
         found_connection[0] = t_grid[y - 1][x][2]
         con_loc[0] = [x, y - 1]
 
     return con_loc, found_connection, found_connection[0] > 0
 
-def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks):
-    print("entering backtrace...")
+def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks, num_wires, figure, ax):
+    
+    """Traces from the source to the value nearest to the current sink.
 
-    print(sink_locations)
+    Args:
+        t_grid (3d numpy array): previous x, previous y, and current value for each tile
+        perm_grid (numpy array): grid containing placed wires + blocks
+        sink_locations ([type]): [description]
+        wire_num (int): the wire number
+        all_sinks (numpy array): list of all sinks
+
+    Returns:
+        perm_grid (numpy array): grid containing placed wires + blocks
+    """
+
+    cmap = colors.ListedColormap(['white', 'blue', 'purple', 'yellow', 'cyan', 'black'], N=num_wires + 2)
+    bounds = []
+    for i in range(-1, num_wires + 2):
+        bounds.append(i + .1)
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    ax.imshow(perm_grid, cmap=cmap, norm=norm)
+    plt.xlabel("X Location", fontsize = 18)
+    plt.ylabel("Y Location", fontsize = 18)
+    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
+
+    # print("entering backtrace...")
+
+    # print(sink_locations)
     wire_value = -1 * (wire_num + 2)
-
-    # avoid connections only between sinks - need to connect to source
+    # plot_t_grid(t_grid)
+    
 
     # for each sink
     x = int(sink_locations[0])
     y = int(sink_locations[1])
     prev_coords = [-1, -1]
 
-    # if(perm_grid[y][x] == wire_value):
-    #     return perm_grid
+    # avoid connections only between sinks - need to connect to source
+    # for i in range(int(len(all_sinks) / 2)):
+    #     if (int(i) == wire_num):
+    #         continue
+    #     x_t = int(all_sinks[int(i) * 2])
+    #     y_t = int(all_sinks[1 + int(i) * 2])
+    #     perm_grid[y_t][x_t] = 0
 
-    for i in range(int(len(all_sinks) / 2)):
-        if (int(i) == wire_num):
-            continue
-        x_t = int(all_sinks[int(i) * 2])
-        y_t = int(all_sinks[1 + int(i) * 2])
-        perm_grid[y_t][x_t] = 0
-
-    
+    # plot_grid(perm_grid)
     while True:
+        ax.imshow(perm_grid * -1, cmap=cmap, norm=norm)
+        figure.canvas.draw()
+        figure.canvas.flush_events()
+        # time.sleep(0.1)
         # if we've reached a wire
         # The or statement covers the corner case of if we are looking at a sink that had been traced over 
         # by a previous wire. The temp grid will have location 0, 0 stored at it. This covers the corner case 
@@ -291,13 +311,11 @@ def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks):
                 perm_grid[y_t][x_t] = wire_value
             break
         else:
-            print("i'm in here!")
             perm_grid[y][x] = wire_value
             prev_coords = [x, y]
             x, y = t_grid[y][x][:2]
             x = int(x)
             y = int(y)
-            print("x: " + str(x) + ", y: " + str(y))
     for i in range(int(len(all_sinks) / 2)):
         x_t = int(all_sinks[int(i) * 2])
         y_t = int(all_sinks[1 + int(i) * 2])
@@ -305,6 +323,20 @@ def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks):
     return perm_grid
 
 def a_solve(perm_grid, temp_grid, wires, num_wires):
+    """Solves a net using the A* algorithm to find connections between a wire source and 
+       its associated sinks.
+
+    Args:
+        perm_grid (numpy array): grid containing placed wires + blocks
+        t_grid (numpy array): grid with the distances from the source, and the x, y coord of prev. tile
+        wires (numpy array): list of wires and the associated sinks / sources
+        num_wires (int): number of wires
+
+    Returns:
+        perm_grid (numpy array): grid containing placed wires + blocks with newly placed net
+    """
+    plt.ion()
+    figure, ax = plt.subplots(figsize=(len(perm_grid),len(perm_grid[0])))
     for wire in range(num_wires):
         sinks_found = False
         wire_found = False
@@ -330,14 +362,14 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
 
             updated_locations = {d_key: deepcopy(this_sink)}
 
-            print("This Sink")
-            print(this_sink)
-            print(source)
-            print(updated_locations)
+            # print("This Sink")
+            # print(this_sink)
+            # print(source)
+            # print(updated_locations)
 
             while connection[0] == 0:
-                print("updated locations")
-                print(updated_locations)
+                # print("updated locations")
+                # print(updated_locations)
                 # if we have to change the value of the key and move away from the optimal path
                 if not updated_locations[d_key]:
                     del updated_locations[d_key]
@@ -345,16 +377,8 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                     print("Wire " + str(sink) + " not found.")
                     break
                 else:
+                    # retrives the minimum key
                     d_key = min(updated_locations)
-
-
-                # if not updated_locations[d_key]:
-                #     del updated_locations[d_key]
-                #     if not updated_locations:
-                #         print("Wire " + str(sink) + " not found.")
-                #         break
-                #     else:
-                #         
 
                 x = updated_locations[d_key][0]
                 y = updated_locations[d_key][1]
@@ -362,22 +386,23 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 man_dist = a_manhattan_distance(source, [x, y]) + a_manhattan_distance(this_sink, [x, y])
 
                 temp_grid, updated_locations, wire_found, connection, connection_location = a_adjacent(temp_grid, x, y, man_dist, this_sink, source, updated_locations, perm_grid, int(wire), all_sinks, connection, connection_location)
+                # remove the point we just searched at
                 del updated_locations[d_key][:2]
                 if(wire_found):
-                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks)
-                    print(perm_grid)
+                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires, figure, ax)
+                    # print(perm_grid)
                     break
 
                 # bring the lowest manhattan distances to the front
-                connection_location, connection, sinks_found = a_found_sink(temp_grid, connection, source, int(sink), connection_location)
-                print("Sinks found: " + str(sinks_found))
-                print("connection")
-                print(connection)
-                print("connection location:")
-                print(connection_location[0])
+                connection_location, connection, sinks_found = a_found_sink(temp_grid, connection, source, connection_location)
+                # print("Sinks found: " + str(sinks_found))
+                # print("connection")
+                # print(connection)
+                # print("connection location:")
+                # print(connection_location[0])
                 
                 if(sinks_found):
-                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks)
-                    print(perm_grid)
+                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires, figure, ax)
+                    # print(perm_grid)
 
     return perm_grid
