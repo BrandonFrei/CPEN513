@@ -5,9 +5,6 @@ import A_Star as a_star
 import cv2
 import os
 
-
-#from numpy.lib.utils import source
-
 def plot_grid(grid_n):  
     # plt.plot(grid)
     plt.imshow(grid_n, interpolation='none')
@@ -140,14 +137,7 @@ def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
     
     # using a value of -1 for the blocks, -2 and lower for each wire
     wire_value = -1 * (wire_num + 2)
-    print(perm_grid)
     
-    # avoid connections only between sinks - need to ensure connect to source
-    # for sink in range(len(sink_locations)//2):
-    #     x = int(sink_locations[int(sink) * 2])
-    #     y = int(sink_locations[1 + int(sink) * 2])
-    #     perm_grid[y][x] = 999999
-
     for sink in range(sink_locations_o.shape[0]):
         
         start_loc = np.asarray([int(sink_locations[int(sink) * 2]), int(sink_locations[1 + int(sink) * 2])])
@@ -242,8 +232,6 @@ def lm_solve(wires, grid, num_wires):
     for wire in range(num_wires):
         sink_found = False
         t_value = 1
-        
-        route_success = True
 
         grid[grid > 0] = 0
 
@@ -304,7 +292,7 @@ def lm_solve(wires, grid, num_wires):
         1) #font stroke
     # destroy all, or else 2 pop up
     cv2.destroyAllWindows()
-    cv2.imshow('C:/Users/flyer/OneDrive/Documents/Random/output.png', temp_img)
+    cv2.imshow('img', temp_img)
    
     cv2.waitKey(20000)
     return grid
@@ -313,10 +301,10 @@ def lm_solve(wires, grid, num_wires):
 
 script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
 
-# CHANGE LINE 321 FOR CHANGING THE INFILE
-rel_path = "benchmarks/benchmarks/stdcell.infile"
+# CHANGE FOLLOWING LINE FOR CHANGING THE INFILE
+rel_path = "benchmarks/benchmarks/impossible2.infile"
 abs_file_path = os.path.join(script_dir, rel_path)
-# CHANGE 320 TO FALSE FOR A*
+# CHANGE FOLLOWING LINE TO False FOR A*
 lee_moore = True
 
 # reading in the file
@@ -335,9 +323,6 @@ else:
     perm_grid_a = perm_grid_a.astype(int)
     temp_grid_a = temp_grid_a.astype(int)
     final_grid = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
-
-
-
 
 
 

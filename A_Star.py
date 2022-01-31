@@ -6,58 +6,41 @@ import cv2
 
 def convert_color(perm_grid, route_type):
     color_grid = np.zeros((perm_grid.shape[0], perm_grid.shape[1], 3))
-    if(route_type == 1):
-        perm_grid = perm_grid * -1
-    # if(route_type == 0):
-    #     perm_grid[perm_grid > 0] = 0
     for j in range(perm_grid.shape[0]):
         for k in range(perm_grid.shape[1]):
+            # White
             if (perm_grid[j][k] == 0 or (route_type == 0 and perm_grid[j][k] > 0)):
-                color_grid[j][k][0] = 255
-                color_grid[j][k][1] = 255
-                color_grid[j][k][2] = 255
-            elif (perm_grid[j][k] == 1 or perm_grid[j][k] == -1):
-                color_grid[j][k][0] = 0
-                color_grid[j][k][1] = 0
-                color_grid[j][k][2] = 0
-
-            elif (perm_grid[j][k] == 2 or perm_grid[j][k] == -2):
-                color_grid[j][k][0] = 255
-                color_grid[j][k][1] = 0
-                color_grid[j][k][2] = 255
-
-            elif (perm_grid[j][k] == 3 or perm_grid[j][k] == -3):
-                color_grid[j][k][0] = 0
-                color_grid[j][k][1] = 255
-                color_grid[j][k][2] = 255
-            elif (perm_grid[j][k] == 4 or perm_grid[j][k] == -4):
-                color_grid[j][k][0] = 0
-                color_grid[j][k][1] = 255
-                color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 5 or perm_grid[j][k] == -5):
-                color_grid[j][k][0] = 255
-                color_grid[j][k][1] = 255
-                color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 6 or perm_grid[j][k] == -6):
-                color_grid[j][k][0] = 95
-                color_grid[j][k][1] = 0
-                color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 7 or perm_grid[j][k] == -7):
-                color_grid[j][k][0] = 95
-                color_grid[j][k][1] = 135
-                color_grid[j][k][2] = 215
-            elif (perm_grid[j][k] == 8 or perm_grid[j][k] == -8):
-                color_grid[j][k][0] = 135
-                color_grid[j][k][1] = 135
-                color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 9 or perm_grid[j][k] == -9):
-                color_grid[j][k][0] = 215
-                color_grid[j][k][1] = 95
-                color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 10 or perm_grid[j][k] == -10):
-                color_grid[j][k][0] = 215
-                color_grid[j][k][1] = 175
-                color_grid[j][k][2] = 255
+                color_grid[j][k] = (255, 255, 255)
+            # Black
+            elif (perm_grid[j][k] == -1):
+                color_grid[j][k] = (0, 0, 0)
+            # Fuchsia
+            elif (perm_grid[j][k] == -2):
+                color_grid[j][k] = (255, 0, 255)
+            # Aqua
+            elif (perm_grid[j][k] == -3):
+                color_grid[j][k] = (0, 255, 255)
+            # Lime
+            elif (perm_grid[j][k] == -4):
+                color_grid[j][k] = (0, 255, 0)
+            # Yellow
+            elif (perm_grid[j][k] == 5):
+                color_grid[j][k] = (255, 255, 0)
+            # DarkRed
+            elif (perm_grid[j][k] == -6):
+                color_grid[j][k] = (95, 0, 0)
+            # SteelBlue
+            elif (perm_grid[j][k] == -7):
+                color_grid[j][k] = (95, 135, 215)
+            # Yellow4
+            elif (perm_grid[j][k] == -8):
+                color_grid[j][k] = (135, 135, 0)
+            # DarkOrange3
+            elif (perm_grid[j][k] == -9):
+                color_grid[j][k] = (215, 95, 0)
+            elif (perm_grid[j][k] == -10):
+            # Plum2
+                color_grid[j][k] = (215, 175, 255)
     return color_grid.astype(np.uint8)
 
 
@@ -448,7 +431,7 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         1) #font stroke
     # destroy all, or else 2 pop up
     cv2.destroyAllWindows()
-    cv2.imshow('C:/Users/flyer/OneDrive/Documents/Random/output.png', temp_img)
+    cv2.imshow('img', temp_img)
    
     cv2.waitKey(20000)
     return perm_grid
