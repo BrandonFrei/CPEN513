@@ -1,10 +1,62 @@
 import numpy as np
 from copy import deepcopy
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-from tkinter import *
-from matplotlib import colors
 import time
+import cv2
+
+def convert_color(perm_grid, num_wires):
+    color_grid = np.zeros((perm_grid.shape[0], perm_grid.shape[1], 3))
+    perm_grid = perm_grid * -1
+    for j in range(perm_grid.shape[0]):
+        for k in range(perm_grid.shape[1]):
+            if (perm_grid[j][k] == 0):
+                color_grid[j][k][0] = 255
+                color_grid[j][k][1] = 255
+                color_grid[j][k][2] = 255
+            elif (perm_grid[j][k] == 1):
+                color_grid[j][k][0] = 0
+                color_grid[j][k][1] = 0
+                color_grid[j][k][2] = 0
+
+            elif (perm_grid[j][k] == 2):
+                color_grid[j][k][0] = 255
+                color_grid[j][k][1] = 0
+                color_grid[j][k][2] = 255
+
+            elif (perm_grid[j][k] == 3):
+                color_grid[j][k][0] = 0
+                color_grid[j][k][1] = 255
+                color_grid[j][k][2] = 255
+            elif (perm_grid[j][k] == 4):
+                color_grid[j][k][0] = 0
+                color_grid[j][k][1] = 255
+                color_grid[j][k][2] = 0
+            elif (perm_grid[j][k] == 5):
+                color_grid[j][k][0] = 255
+                color_grid[j][k][1] = 255
+                color_grid[j][k][2] = 0
+            elif (perm_grid[j][k] == 6):
+                color_grid[j][k][0] = 95
+                color_grid[j][k][1] = 0
+                color_grid[j][k][2] = 0
+            elif (perm_grid[j][k] == 7):
+                color_grid[j][k][0] = 95
+                color_grid[j][k][1] = 135
+                color_grid[j][k][2] = 215
+            elif (perm_grid[j][k] == 8):
+                color_grid[j][k][0] = 135
+                color_grid[j][k][1] = 135
+                color_grid[j][k][2] = 0
+            elif (perm_grid[j][k] == 9):
+                color_grid[j][k][0] = 215
+                color_grid[j][k][1] = 95
+                color_grid[j][k][2] = 0
+            elif (perm_grid[j][k] == 9):
+                color_grid[j][k][0] = 215
+                color_grid[j][k][1] = 175
+                color_grid[j][k][2] = 255
+    return color_grid.astype(np.uint8)
+
 
 def plot_t_grid(temp_grid):
     """Plots the current state of the temp_grid (values from source only)
@@ -86,7 +138,7 @@ def a_manhattan_distance(loc1, loc2):
         int: manhattan distance
     """
     x = (abs(int(loc1[0]) - int(loc2[0])) + abs(int(loc1[1]) - int(loc2[1])))
-    #print("man_dist: " + str(x))
+
     return x
 
 def a_adjacent(t_grid, x, y, value, sink, source, loc_dict, perm_grid, wire, all_sinks, connection, connection_location):
@@ -205,8 +257,7 @@ def is_sink(x, y, sinks):
         if ([x, y] == sink_loc):
             return True
     return False
-# shouldn't need to modify this one too much. might need to check for the lowest value one,
-# but I don't think so.
+
 def a_found_sink(t_grid, found_connection, source, con_loc):
     """looks for sinks in adjacent squares at the current grid tile
        Used in the forward pass
@@ -226,7 +277,7 @@ def a_found_sink(t_grid, found_connection, source, con_loc):
     """
     x, y = source
 
-    #hacky way to make sure that we got the working grid slot..
+    # make sure we get the closest grid slot to the source
     found_val = 0
 
     # if we have a valid point, and if it's been visited by the adjacent algorithm
@@ -249,7 +300,7 @@ def a_found_sink(t_grid, found_connection, source, con_loc):
 
     return con_loc, found_connection, found_connection[0] > 0
 
-def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks, num_wires, figure, ax):
+def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks, num_wires):
     
     """Traces from the source to the value nearest to the current sink.
 
@@ -264,42 +315,17 @@ def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks, num_wire
         perm_grid (numpy array): grid containing placed wires + blocks
     """
 
-    cmap = colors.ListedColormap(['white', 'blue', 'purple', 'yellow', 'cyan', 'black'], N=num_wires + 2)
-    bounds = []
-    for i in range(-1, num_wires + 2):
-        bounds.append(i + .1)
-    norm = colors.BoundaryNorm(bounds, cmap.N)
-    ax.imshow(perm_grid, cmap=cmap, norm=norm)
-    plt.xlabel("X Location", fontsize = 18)
-    plt.ylabel("Y Location", fontsize = 18)
-    ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=2)
-
-    # print("entering backtrace...")
-
-    # print(sink_locations)
     wire_value = -1 * (wire_num + 2)
-    # plot_t_grid(t_grid)
-    
 
     # for each sink
     x = int(sink_locations[0])
     y = int(sink_locations[1])
     prev_coords = [-1, -1]
 
-    # avoid connections only between sinks - need to connect to source
-    # for i in range(int(len(all_sinks) / 2)):
-    #     if (int(i) == wire_num):
-    #         continue
-    #     x_t = int(all_sinks[int(i) * 2])
-    #     y_t = int(all_sinks[1 + int(i) * 2])
-    #     perm_grid[y_t][x_t] = 0
-
-    # plot_grid(perm_grid)
     while True:
-        ax.imshow(perm_grid * -1, cmap=cmap, norm=norm)
-        figure.canvas.draw()
-        figure.canvas.flush_events()
-        # time.sleep(0.1)
+        cv2.imshow("img", (convert_color(perm_grid, num_wires)))
+        cv2.waitKey(50)
+    
         # if we've reached a wire
         # The or statement covers the corner case of if we are looking at a sink that had been traced over 
         # by a previous wire. The temp grid will have location 0, 0 stored at it. This covers the corner case 
@@ -335,8 +361,11 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
     Returns:
         perm_grid (numpy array): grid containing placed wires + blocks with newly placed net
     """
-    plt.ion()
-    figure, ax = plt.subplots(figsize=(len(perm_grid),len(perm_grid[0])))
+
+    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('img', perm_grid.shape[1] * 25, perm_grid.shape[0] * 25)
+
+    successful_routes = 0
     for wire in range(num_wires):
         sinks_found = False
         wire_found = False
@@ -347,6 +376,7 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         
         # first pin is a source
         for sink in range (int(wires[int(wire)][0]) - 1):
+
             # used to keep track of if we have a connection between the new "path"
             # of values between the souce and the sink. Stores the numerical value
             # of the first grid location that arrives adjacent to the pin in question
@@ -362,14 +392,8 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
 
             updated_locations = {d_key: deepcopy(this_sink)}
 
-            # print("This Sink")
-            # print(this_sink)
-            # print(source)
-            # print(updated_locations)
-
             while connection[0] == 0:
-                # print("updated locations")
-                # print(updated_locations)
+
                 # if we have to change the value of the key and move away from the optimal path
                 if not updated_locations[d_key]:
                     del updated_locations[d_key]
@@ -386,23 +410,24 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 man_dist = a_manhattan_distance(source, [x, y]) + a_manhattan_distance(this_sink, [x, y])
 
                 temp_grid, updated_locations, wire_found, connection, connection_location = a_adjacent(temp_grid, x, y, man_dist, this_sink, source, updated_locations, perm_grid, int(wire), all_sinks, connection, connection_location)
+                
                 # remove the point we just searched at
                 del updated_locations[d_key][:2]
                 if(wire_found):
-                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires, figure, ax)
-                    # print(perm_grid)
+                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires)
+                    successful_routes += 1
                     break
 
                 # bring the lowest manhattan distances to the front
                 connection_location, connection, sinks_found = a_found_sink(temp_grid, connection, source, connection_location)
-                # print("Sinks found: " + str(sinks_found))
-                # print("connection")
-                # print(connection)
-                # print("connection location:")
-                # print(connection_location[0])
                 
                 if(sinks_found):
-                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires, figure, ax)
-                    # print(perm_grid)
+                    perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires)
+                    successful_routes += 1
 
+    img = convert_color(perm_grid, num_wires)
+    cv2.imshow("img", img)
+    cv2.addText(img, "Wires Successfully Routed: " + str(successful_routes), (0, 0), cv2.FONT_HERSHEY_SIMPLEX, 
+                   1, (0, 255, 255))
+    cv2.waitKey(10000)
     return perm_grid
