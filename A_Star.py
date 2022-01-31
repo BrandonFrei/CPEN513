@@ -4,54 +4,57 @@ import matplotlib.pyplot as plt
 import time
 import cv2
 
-def convert_color(perm_grid, num_wires):
+def convert_color(perm_grid, route_type):
     color_grid = np.zeros((perm_grid.shape[0], perm_grid.shape[1], 3))
-    perm_grid = perm_grid * -1
+    if(route_type == 1):
+        perm_grid = perm_grid * -1
+    # if(route_type == 0):
+    #     perm_grid[perm_grid > 0] = 0
     for j in range(perm_grid.shape[0]):
         for k in range(perm_grid.shape[1]):
-            if (perm_grid[j][k] == 0):
+            if (perm_grid[j][k] == 0 or (route_type == 0 and perm_grid[j][k] > 0)):
                 color_grid[j][k][0] = 255
                 color_grid[j][k][1] = 255
                 color_grid[j][k][2] = 255
-            elif (perm_grid[j][k] == 1):
+            elif (perm_grid[j][k] == 1 or perm_grid[j][k] == -1):
                 color_grid[j][k][0] = 0
                 color_grid[j][k][1] = 0
                 color_grid[j][k][2] = 0
 
-            elif (perm_grid[j][k] == 2):
+            elif (perm_grid[j][k] == 2 or perm_grid[j][k] == -2):
                 color_grid[j][k][0] = 255
                 color_grid[j][k][1] = 0
                 color_grid[j][k][2] = 255
 
-            elif (perm_grid[j][k] == 3):
+            elif (perm_grid[j][k] == 3 or perm_grid[j][k] == -3):
                 color_grid[j][k][0] = 0
                 color_grid[j][k][1] = 255
                 color_grid[j][k][2] = 255
-            elif (perm_grid[j][k] == 4):
+            elif (perm_grid[j][k] == 4 or perm_grid[j][k] == -4):
                 color_grid[j][k][0] = 0
                 color_grid[j][k][1] = 255
                 color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 5):
+            elif (perm_grid[j][k] == 5 or perm_grid[j][k] == -5):
                 color_grid[j][k][0] = 255
                 color_grid[j][k][1] = 255
                 color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 6):
+            elif (perm_grid[j][k] == 6 or perm_grid[j][k] == -6):
                 color_grid[j][k][0] = 95
                 color_grid[j][k][1] = 0
                 color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 7):
+            elif (perm_grid[j][k] == 7 or perm_grid[j][k] == -7):
                 color_grid[j][k][0] = 95
                 color_grid[j][k][1] = 135
                 color_grid[j][k][2] = 215
-            elif (perm_grid[j][k] == 8):
+            elif (perm_grid[j][k] == 8 or perm_grid[j][k] == -8):
                 color_grid[j][k][0] = 135
                 color_grid[j][k][1] = 135
                 color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 9):
+            elif (perm_grid[j][k] == 9 or perm_grid[j][k] == -9):
                 color_grid[j][k][0] = 215
                 color_grid[j][k][1] = 95
                 color_grid[j][k][2] = 0
-            elif (perm_grid[j][k] == 9):
+            elif (perm_grid[j][k] == 10 or perm_grid[j][k] == -10):
                 color_grid[j][k][0] = 215
                 color_grid[j][k][1] = 175
                 color_grid[j][k][2] = 255
@@ -323,7 +326,7 @@ def a_backtrace(t_grid, perm_grid, sink_locations, wire_num, all_sinks, num_wire
     prev_coords = [-1, -1]
 
     while True:
-        cv2.imshow("img", (convert_color(perm_grid, num_wires)))
+        cv2.imshow("img", (convert_color(perm_grid, 1)))
         cv2.waitKey(50)
     
         # if we've reached a wire
@@ -364,8 +367,8 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
 
     cv2.namedWindow('img', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('img', perm_grid.shape[1] * 25, perm_grid.shape[0] * 25)
-
     successful_routes = 0
+
     for wire in range(num_wires):
         sinks_found = False
         wire_found = False
@@ -373,6 +376,8 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         source = [int(i) for i in source]
         all_sinks = wires[wire][3:]
         all_sinks = [int(i) for i in all_sinks]
+
+        route_success = True
         
         # first pin is a source
         for sink in range (int(wires[int(wire)][0]) - 1):
@@ -398,12 +403,14 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 if not updated_locations[d_key]:
                     del updated_locations[d_key]
                 if not updated_locations:
-                    print("Wire " + str(sink) + " not found.")
+                    print("Wire " + str(wire) + " not found.")
+                    route_success = False
                     break
                 else:
                     # retrives the minimum key
                     d_key = min(updated_locations)
 
+                # new locations
                 x = updated_locations[d_key][0]
                 y = updated_locations[d_key][1]
 
@@ -413,9 +420,10 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 
                 # remove the point we just searched at
                 del updated_locations[d_key][:2]
+
+                # if we found a wire before finding the sink
                 if(wire_found):
                     perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires)
-                    successful_routes += 1
                     break
 
                 # bring the lowest manhattan distances to the front
@@ -423,11 +431,24 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
                 
                 if(sinks_found):
                     perm_grid = a_backtrace(temp_grid, perm_grid, connection_location[0], int(wire), all_sinks, num_wires)
-                    successful_routes += 1
+        
+        if(route_success):
+            successful_routes += 1
 
-    img = convert_color(perm_grid, num_wires)
-    cv2.imshow("img", img)
-    cv2.addText(img, "Wires Successfully Routed: " + str(successful_routes), (0, 0), cv2.FONT_HERSHEY_SIMPLEX, 
-                   1, (0, 255, 255))
-    cv2.waitKey(10000)
+    position = (perm_grid.shape[1] * 2, perm_grid.shape[0] * 24)
+
+    temp_img = cv2.resize(convert_color(perm_grid, 1), (perm_grid.shape[1] * 25, perm_grid.shape[0] * 25), interpolation = cv2.INTER_AREA)
+    cv2.putText(
+        temp_img, #numpy array on which text is written
+        "Wires Successfully Routed: " + str(successful_routes), #text
+        position, #position at which writing has to start
+        cv2.FONT_HERSHEY_COMPLEX, #font family
+        perm_grid.shape[0] / 30, #font size
+        (209, 80, 0, 255), #font color
+        1) #font stroke
+    # destroy all, or else 2 pop up
+    cv2.destroyAllWindows()
+    cv2.imshow('C:/Users/flyer/OneDrive/Documents/Random/output.png', temp_img)
+   
+    cv2.waitKey(20000)
     return perm_grid

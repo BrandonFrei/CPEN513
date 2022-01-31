@@ -1,74 +1,59 @@
-from turtle import color
 import numpy as np
 from copy import deepcopy
-import time
-import tkinter as tk
 import matplotlib.pyplot as plt
-from matplotlib import colors
-
 import A_Star as a_star
+import cv2
+import os
 
-from numpy.lib.utils import source
 
-def plot_grid(grid_n):
+#from numpy.lib.utils import source
+
+def plot_grid(grid_n):  
     # plt.plot(grid)
     plt.imshow(grid_n, interpolation='none')
     plt.show()
     plt.clf()
     
+def lm_init(input_data):
+    width, height = input_data[0].split(" ")
+    width = int(width)
+    height = int(height)
 
-# reading in the file
-data = []
-with open('C:/Users/flyer/OneDrive/Documents/UBC School/CPEN513/CPEN513/benchmarks/benchmarks/example.infile') as rfile:
-    data_raw = rfile.readlines()
-    for line in data_raw:
-        data.append(line.strip())
+    print("The width is " + str(width) + ", and the height is " + str(height) + ".")
 
-perm_grid_a, temp_grid_a, wires_a, num_wires_a = a_star.a_init_aStar(data)
-perm_grid_a = perm_grid_a.astype(int)
-temp_grid_a = temp_grid_a.astype(int)
-print(num_wires_a)
-final_grid = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
-print(final_grid)
-exit(0)
+    grid = np.zeros((height, width))
 
-width, height = data[0].split(" ")
-width = int(width)
-height = int(height)
+    # separating out the input obstructions
+    num_obstructions = int(input_data[1])
+    obstructions = []
 
-print("The width is " + str(width) + ", and the height is " + str(height) + ".")
+    # plus 2 because of the data offset in the input file
+    for i in range(2, num_obstructions+2):
+        temp = input_data[i].split()
+        obstructions.append(temp)
 
-grid = np.zeros((height, width))
+    obstructions = np.asarray(obstructions)
 
-# separating out the input obstructions
-num_obstructions = int(data[1])
-obstructions = []
+    wire_location = num_obstructions+2
 
-# plus 2 because of the data offset in the input file
-for i in range(2, num_obstructions+2):
-    temp = data[i].split()
-    obstructions.append(temp)
+    num_wires = int(input_data[wire_location])
 
-obstructions = np.asarray(obstructions)
+    wires_temp = input_data[wire_location+1:]
 
-wire_location = num_obstructions+2
-
-num_wires = int(data[wire_location])
-
-wires_temp = data[wire_location+1:]
-
-# separating out the wires
-wires = []
-for i in range(num_wires):
-    temp = wires_temp[i].split()
-    wires.append(temp)
-    num_pins = wires[i][0]
-    for j in range(int(num_pins)):
-        x = int(wires[i][1 + (int)(j) * 2])
-        y = int(wires[i][2 + (int)(j) * 2])
-        grid[y][x] = (-1)* (i + 2)
-for i in range(num_obstructions):
-    grid[int(obstructions[i][1])][int(obstructions[i][0])] = -1
+    # separating out the wires
+    wires = []
+    for i in range(num_wires):
+        temp = wires_temp[i].split()
+        wires.append(temp)
+        num_pins = wires[i][0]
+        for j in range(int(num_pins)):
+            x = int(wires[i][1 + (int)(j) * 2])
+            y = int(wires[i][2 + (int)(j) * 2])
+            grid[y][x] = (-1)* (i + 2)
+    for i in range(num_obstructions):
+        grid[int(obstructions[i][1])][int(obstructions[i][0])] = -1
+    
+    return wires, grid, num_wires
     
 def adjacent(t_grid, x, y, value):
     """fills in values of adjacent tiles with value
@@ -138,14 +123,7 @@ def found_sink(t_grid, found_connection, x, y, j, con_loc):
 
     return con_loc, found_connection, (np.count_nonzero(found_connection) >= num_pins)
 
-# temp_grid -> the grid with the values filled in from the lee-moore algorithm
-# perm_grid -> the grid with the current connections / blocks only
-# x, y -> the starting point of the back trace algorithm (the grid slot closest
-#      to the sink in question)
-# sink_locations_o -> offset sink locations, where the first value is located
-# sink_locations -> where the sink is located
 def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
-    # using a value of -1 for the blocks, -2 and lower for each wire
     """ Traces through the grid created by adjacent from the sink back to the source
         Used in the backward pass
 
@@ -159,15 +137,16 @@ def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
     Returns:
         perm_grid (numpy array): grid updated with new wire values
     """
-
+    
+    # using a value of -1 for the blocks, -2 and lower for each wire
     wire_value = -1 * (wire_num + 2)
     print(perm_grid)
     
     # avoid connections only between sinks - need to ensure connect to source
-    for sink in range(len(sink_locations)//2):
-        x = int(sink_locations[int(sink) * 2])
-        y = int(sink_locations[1 + int(sink) * 2])
-        perm_grid[y][x] = 999999
+    # for sink in range(len(sink_locations)//2):
+    #     x = int(sink_locations[int(sink) * 2])
+    #     y = int(sink_locations[1 + int(sink) * 2])
+    #     perm_grid[y][x] = 999999
 
     for sink in range(sink_locations_o.shape[0]):
         
@@ -179,6 +158,8 @@ def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
         
         i = 0
         while True:
+            cv2.imshow("img", (a_star.convert_color(perm_grid, 0)))
+            cv2.waitKey(50)
             i += 1
             
             # if we've arrived at the source
@@ -233,77 +214,127 @@ def backtrace(perm_grid, sink_locations_o, sink_locations, wire_num):
                 previous_location = np.asarray([x, y])
                 y -= 1
                 continue
+    # refill sink values 
     for sink in range(len(sink_locations)//2):
         x = int(sink_locations[int(sink) * 2])
         y = int(sink_locations[1 + int(sink) * 2])
         perm_grid[y][x] = wire_value
 
     grid[grid > 0] = 0
-    return perm_grid               
+    return perm_grid
 
-for wire in range(num_wires):
-    sink_found = False
-    t_value = 1
+def lm_solve(wires, grid, num_wires):
+    """Solves a net using the Lee Moore algorithm to find connections between a wire source and 
+       its associated sinks.
 
-    grid[grid > 0] = 0
+    Args:
+        wires ([type]): [description]
+        grid ([type]): [description]
+        num_wires ([type]): [description]
 
-    updated_locations = np.asarray(wires[wire][1:3])
+    Returns:
+        [type]: [description]
+    """
+    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('img', grid.shape[1] * 25, grid.shape[0] * 25)
+    successful_routes = 0
 
-    # used to keep track of if we have a connection between the new "path"
-    # of values between the souce and the sink. Stores the numerical value
-    # of the first grid location that arrives adjacent to the pin in question
-    connection = np.zeros((int((wires[wire][0])) - 1))
-
-    # Keeps track of the location (x, y) of each saved connection
-    connection_location = np.zeros((int((wires[wire][0])) - 1, 2))
-
-    # print(updated_locations)
-    while sink_found != True:
-        new_locations = []
-        # Looping over each "value" in the grid, one at a time, and finding the 
-        # unoccupied neighbors. 
-        for i in range(int(len(updated_locations)/2)):
-            x = int(updated_locations[0 + i * 2])
-            y = int(updated_locations[1 + i * 2])
-            grid, temp_locations = adjacent(grid, x, y, t_value)
-            new_locations += temp_locations
-        t_value += 1
-        if not new_locations:
-            print("No connections found for wire number " + str(wire) + ".")
-            break
-        updated_locations = deepcopy(new_locations)
+    for wire in range(num_wires):
+        sink_found = False
+        t_value = 1
         
-        # Did any of the new values arrive at the sinks
-        # number of sinks per wire
-        for j in range(int((wires[wire][0])) - 1):
-            if (connection[j] > 0):
-                continue
-            x = int(wires[wire][3 + int(j) * 2])
-            y = int(wires[wire][4 + int(j) * 2])
-            connection_location, connection, sink_found = found_sink(grid, connection, x, y, j, connection_location)
-        
-        if (sink_found or t_value > 1000):
-            # delete this line when testing is done
-            sink_found = True
-            sinks = wires[wire][3:]
-            np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
-            grid = backtrace(grid, connection_location, sinks, int(wire))
-            plot_grid(grid)
+        route_success = True
+
+        grid[grid > 0] = 0
+
+        updated_locations = np.asarray(wires[wire][1:3])
+
+        # used to keep track of if we have a connection between the new "path"
+        # of values between the souce and the sink. Stores the numerical value
+        # of the first grid location that arrives adjacent to the pin in question
+        connection = np.zeros((int((wires[wire][0])) - 1))
+
+        # Keeps track of the location (x, y) of each saved connection
+        connection_location = np.zeros((int((wires[wire][0])) - 1, 2))
+
+        # print(updated_locations)
+        while sink_found != True:
+            new_locations = []
+            # Looping over each "value" in the grid, one at a time, and finding the 
+            # unoccupied neighbors. 
+            for i in range(int(len(updated_locations)/2)):
+                x = int(updated_locations[0 + i * 2])
+                y = int(updated_locations[1 + i * 2])
+                grid, temp_locations = adjacent(grid, x, y, t_value)
+                new_locations += temp_locations
+            t_value += 1
+            if not new_locations:
+                print("No connections found for wire number " + str(wire) + ".")
+                break
+            updated_locations = deepcopy(new_locations)
+            
+            # Did any of the new values arrive at the sinks
+            # number of sinks per wire
+            for j in range(int((wires[wire][0])) - 1):
+                if (connection[j] > 0):
+                    continue
+                x = int(wires[wire][3 + int(j) * 2])
+                y = int(wires[wire][4 + int(j) * 2])
+                connection_location, connection, sink_found = found_sink(grid, connection, x, y, j, connection_location)
+            
+            if (sink_found):
+                successful_routes += 1
+                # delete this line when testing is done
+                sink_found = True
+                sinks = wires[wire][3:]
+                np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
+                grid = backtrace(grid, connection_location, sinks, int(wire))
+                grid[grid > 0] = 0
+                # plot_grid(grid)
+
+    position = (grid.shape[1] * 2, grid.shape[0] * 24)
+    temp_img = cv2.resize(a_star.convert_color(grid, 0), (grid.shape[1] * 25, grid.shape[0] * 25), interpolation = cv2.INTER_AREA)
+    cv2.putText(
+        temp_img, #numpy array on which text is written
+        "Wires Successfully Routed: " + str(successful_routes), #text
+        position, #position at which writing has to start
+        cv2.FONT_HERSHEY_COMPLEX, #font family
+        grid.shape[0] / 30, #font size
+        (209, 80, 0, 255), #font color
+        1) #font stroke
+    # destroy all, or else 2 pop up
+    cv2.destroyAllWindows()
+    cv2.imshow('C:/Users/flyer/OneDrive/Documents/Random/output.png', temp_img)
+   
+    cv2.waitKey(20000)
+    return grid
 
 
-grid = grid.astype(int)
-#print(grid)
-# np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
-color_grid = np.asarray([["white"]*grid.shape[1]]*grid.shape[0])
 
-color_grid[grid == -1] = "black"
-# plt.imshow(grid, interpolation='none')
-# plt.show()
-# colors = ["yellow", "cyan", "purple", "green", "red", "orange", "pink"]
-# for i in range(2, 2 + int(num_wires)):
-#     color_grid[grid == -i] = colors[i]
-print(grid)
-plot_grid(grid)
+script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
+
+# CHANGE LINE 321 FOR CHANGING THE INFILE
+rel_path = "benchmarks/benchmarks/stdcell.infile"
+abs_file_path = os.path.join(script_dir, rel_path)
+# CHANGE 320 TO FALSE FOR A*
+lee_moore = True
+
+# reading in the file
+data = []
+with open(abs_file_path) as rfile:
+    data_raw = rfile.readlines()
+    for line in data_raw:
+        data.append(line.strip())
+
+if (lee_moore):
+    wires, grid, num_wires = lm_init(data)
+    grid = lm_solve(wires, grid, num_wires)
+    np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
+else:
+    perm_grid_a, temp_grid_a, wires_a, num_wires_a = a_star.a_init_aStar(data)
+    perm_grid_a = perm_grid_a.astype(int)
+    temp_grid_a = temp_grid_a.astype(int)
+    final_grid = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
 
 
 
