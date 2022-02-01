@@ -24,7 +24,7 @@ def convert_color(perm_grid, route_type):
             elif (perm_grid[j][k] == -4):
                 color_grid[j][k] = (0, 255, 0)
             # Yellow
-            elif (perm_grid[j][k] == 5):
+            elif (perm_grid[j][k] == -5):
                 color_grid[j][k] = (255, 255, 0)
             # DarkRed
             elif (perm_grid[j][k] == -6):
@@ -103,6 +103,7 @@ def a_init_aStar(data):
     for i in range(num_wires):
         temp = wires_temp[i].split()
         wires.append(temp)
+        print(wires)
         num_pins = wires[i][0]
         for j in range(int(num_pins)):
             x = int(wires[i][1 + (int)(j) * 2])
@@ -418,7 +419,7 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         if(route_success):
             successful_routes += 1
 
-    position = (perm_grid.shape[1] * 2, perm_grid.shape[0] * 24)
+    position = (perm_grid.shape[1] * 2, perm_grid.shape[0] * 22)
 
     temp_img = cv2.resize(convert_color(perm_grid, 1), (perm_grid.shape[1] * 25, perm_grid.shape[0] * 25), interpolation = cv2.INTER_AREA)
     cv2.putText(
@@ -431,7 +432,9 @@ def a_solve(perm_grid, temp_grid, wires, num_wires):
         1) #font stroke
     # destroy all, or else 2 pop up
     cv2.destroyAllWindows()
+    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('img', perm_grid.shape[1] * 25, perm_grid.shape[0] * 25)
     cv2.imshow('img', temp_img)
    
-    cv2.waitKey(20000)
-    return perm_grid
+    cv2.waitKey(10000)
+    return perm_grid, successful_routes
