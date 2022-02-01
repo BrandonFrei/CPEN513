@@ -11,7 +11,7 @@ def plot_grid(grid_n):
     plt.show()
     plt.clf()
     
-def lm_init(input_data):
+def lm_init(input_data, is_shuffle):
     width, height = input_data[0].split(" ")
     width = int(width)
     height = int(height)
@@ -36,17 +36,30 @@ def lm_init(input_data):
     num_wires = int(input_data[wire_location])
 
     wires_temp = input_data[wire_location+1:]
-
-    # separating out the wires
+    
     wires = []
-    for i in range(num_wires):
-        temp = wires_temp[i].split()
-        wires.append(temp)
-        num_pins = wires[i][0]
-        for j in range(int(num_pins)):
-            x = int(wires[i][1 + (int)(j) * 2])
-            y = int(wires[i][2 + (int)(j) * 2])
-            grid[y][x] = (-1)* (i + 2)
+    # separating out the wires
+    if (not is_shuffle):
+        for i in range(num_wires):
+            temp = wires_temp[i].split()
+            wires.append(temp)
+            num_pins = wires[i][0]
+            for j in range(int(num_pins)):
+                x = int(wires[i][1 + (int)(j) * 2])
+                y = int(wires[i][2 + (int)(j) * 2])
+                grid[y][x] = (-1)* (i + 2)
+    else:
+        for i in range(num_wires):
+            temp = wires_temp[i].split()
+            wires.append(temp)
+        np.random.shuffle(wires)
+        print(wires)
+        for i in range(num_wires):
+             for j in range(int(wires[i][0])):
+                x = int(wires[i][1 + (int)(j) * 2])
+                y = int(wires[i][2 + (int)(j) * 2])
+                grid[y][x] = (-1)* (i + 2)
+
     for i in range(num_obstructions):
         grid[int(obstructions[i][1])][int(obstructions[i][0])] = -1
     
@@ -226,6 +239,7 @@ def lm_solve(wires, grid, num_wires):
         [type]: [description]
     """
     cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    grid = np.array(grid)
     cv2.resizeWindow('img', grid.shape[1] * 25, grid.shape[0] * 25)
     successful_routes = 0
 
@@ -280,7 +294,7 @@ def lm_solve(wires, grid, num_wires):
                 grid[grid > 0] = 0
                 # plot_grid(grid)
 
-    position = (grid.shape[1] * 2, grid.shape[0] * 24)
+    position = (grid.shape[1] * 2, grid.shape[0] * 22)
     temp_img = cv2.resize(a_star.convert_color(grid, 0), (grid.shape[1] * 25, grid.shape[0] * 25), interpolation = cv2.INTER_AREA)
     cv2.putText(
         temp_img, #numpy array on which text is written
@@ -292,21 +306,23 @@ def lm_solve(wires, grid, num_wires):
         1) #font stroke
     # destroy all, or else 2 pop up
     cv2.destroyAllWindows()
+    cv2.namedWindow('img', cv2.WINDOW_NORMAL)
+    cv2.resizeWindow('img', grid.shape[1] * 25, grid.shape[0] * 25)
     cv2.imshow('img', temp_img)
    
-    cv2.waitKey(20000)
-    return grid
+    cv2.waitKey(10000)
+    cv2.destroyAllWindows()
+    return grid, successful_routes
 
 
 
 script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
 
 # CHANGE FOLLOWING LINE FOR CHANGING THE INFILE
-rel_path = "benchmarks/benchmarks/impossible2.infile"
+rel_path = "benchmarks/benchmarks/stdcell.infile"
 abs_file_path = os.path.join(script_dir, rel_path)
 # CHANGE FOLLOWING LINE TO False FOR A*
 lee_moore = True
-
 # reading in the file
 data = []
 with open(abs_file_path) as rfile:
@@ -315,25 +331,28 @@ with open(abs_file_path) as rfile:
         data.append(line.strip())
 
 if (lee_moore):
-    wires, grid, num_wires = lm_init(data)
-    grid = lm_solve(wires, grid, num_wires)
+    wires, grid, num_wires = lm_init(data, False)
+    grid = grid.astype(int)
+    updated_grid, num_connections = lm_solve(wires, grid, num_wires)
     np.savetxt("foo.txt", grid, delimiter=" ", fmt='%d')
+
+    # better routing (randomize wire order)
+    # saves the best route
+    best_attempt = deepcopy(grid)
+    previous_best_connections = num_connections
+    previous_attempt = deepcopy(grid)
+    new_attempt = deepcopy(grid)
+    if (num_connections < num_wires): 
+        previous_best_connections = num_connections
+        for i in range(5): 
+            if (num_connections < num_wires): 
+                wires, grid, num_wires = lm_init(data, True)
+                new_attempt, previous_best_connections = lm_solve(wires, grid, num_wires)
+                if(num_connections < previous_best_connections):
+                    num_connections = previous_best_connections
+                    best_attempt = deepcopy(new_attempt)
 else:
     perm_grid_a, temp_grid_a, wires_a, num_wires_a = a_star.a_init_aStar(data)
     perm_grid_a = perm_grid_a.astype(int)
     temp_grid_a = temp_grid_a.astype(int)
-    final_grid = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
-
-
-
-    # TODO (COMPLETED, UNTESTED) have a check for if there's a blank list being returned in new_locations.
-    # in that case, need to end the current net search and draw connections that have 
-    # been made, and move on to the next netlist.
-    # Might be better to just delete the entire one that wasn't finished, and reschedule
-    # it for later. 
-
-    # TODO (COMPLETED, UNTESTED) Because of the case where we only have 1 wire, the solve function needs to be
-    # sent a single wire at a time. Otherwise, if we only have 1 wire, will have python 
-    # issues. 
-
-    # TODO (COMPLETED, UNTESTED) make sure that we can connect to the source in all 4 directions, same with sink
+    final_grid, num_connections_a = a_star.a_solve(perm_grid_a, temp_grid_a, wires_a, num_wires_a)
