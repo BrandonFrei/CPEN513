@@ -5,6 +5,8 @@ BRANDON FREIBERGER, 86799228
 
 **Modifications only need to be made in routing.py, unless specified.**
 
+To run the code, type <python3 Routing.py> into the terminal. The code was tested with python version 3.9.
+
 The paths can be modified in line 305 / 308 if they are not working correctly.
 
 In order to switch the infile, modify line 308 to a valid infile.
